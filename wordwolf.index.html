@@ -118,16 +118,29 @@
 <script>
   // ここにお題ペアを追加していけば増やせる（正月回も後で入れよう）
   const PAIRS = [
-    { citizen: "お正月", wolf: "クリスマス" },
-    { citizen: "お年玉", wolf: "誕生日プレゼント" },
-    { citizen: "初詣", wolf: "お盆参り" },
-    { citizen: "おせち", wolf: "クリスマスケーキ" },
-    { citizen: "こたつ", wolf: "扇風機" },
-    { citizen: "みかん", wolf: "りんご" },
-    { citizen: "犬", wolf: "猫" },
-    { citizen: "カレー", wolf: "シチュー" },
-    { citizen: "海", wolf: "プール" },
-  ];
+  const PAIRS = [
+  // ===== 正月（5）=====
+  { citizen: "お正月", wolf: "休日" },
+  { citizen: "初詣", wolf: "お参り" },
+  { citizen: "お年玉", wolf: "ボーナス" },
+  { citizen: "正月太り", wolf: "食べ過ぎ" },
+  { citizen: "新年の目標", wolf: "やりたいこと" },
+
+  // ===== 恋愛（5）=====
+  { citizen: "好きな人", wolf: "気になる人" },
+  { citizen: "告白", wolf: "プロポーズ" },
+  { citizen: "ファーストキス", wolf: "初体験" },
+  { citizen: "恋人にしたいタイプ", wolf: "結婚したいタイプ" },
+  { citizen: "安心できる人", wolf: "刺激的な人" },
+
+  // ===== 地獄（5）=====
+  { citizen: "黒歴史", wolf: "トラウマ" },
+  { citizen: "寂しいこと", wolf: "悔しいこと" },
+  { citizen: "普通", wolf: "異常" },
+  { citizen: "人生とは", wolf: "夢とは" },
+  { citizen: "片思い", wolf: "ストーカー" },
+];
+
 
   const $ = (id) => document.getElementById(id);
 
@@ -260,3 +273,4 @@
 </script>
 </body>
 </html>
+
