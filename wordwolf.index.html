@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Word Wolf - 個別URL配布</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; background:#0b0c10; color:#eaf0ff; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 20px; }
+    .card { background:#141824; border:1px solid #27304a; border-radius:16px; padding:16px; margin:12px 0; }
+    h1 { margin: 0 0 12px; font-size: 22px; }
+    h2 { margin: 0 0 8px; font-size: 18px; }
+    label { display:block; margin:10px 0 6px; opacity:.9; }
+    input, select, button, textarea {
+      width: 100%; box-sizing: border-box;
+      padding: 10px 12px; border-radius: 12px; border:1px solid #2b3757;
+      background:#0f1320; color:#eaf0ff;
+    }
+    button { cursor:pointer; font-weight:700; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .muted { opacity:.75; font-size: 13px; line-height: 1.5; }
+    .big { font-size: 28px; font-weight: 800; margin: 6px 0 10px; }
+    .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#1e2a49; border:1px solid #32406a; font-size: 12px; }
+    .ok { color:#a7ffb3; }
+    .warn { color:#ffd58a; }
+    .danger { color:#ff9aa7; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .copybtn { width:auto; padding:8px 12px; margin-left:8px; }
+    .linkrow { display:flex; gap:8px; align-items:center; }
+    .linkrow input { flex:1; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🐺 Word Wolf（個別URL配布）</h1>
+
+  <div id="hostView" class="card" hidden>
+    <h2>司会：配布リンク生成</h2>
+    <p class="muted">
+      人数とお題ペアを選んで「生成」→ 出てきた個別URLを各参加者にDMで送ってね。<br>
+      ※この方式は「リンクを見せ合わない」前提（＝身内向け）で最強にラクです。
+    </p>
+
+    <div class="row">
+      <div>
+        <label>参加人数（2〜12）</label>
+        <input id="playerCount" type="number" min="2" max="12" value="5" />
+      </div>
+      <div>
+        <label>ウルフ人数</label>
+        <select id="wolfCount">
+          <option value="1" selected>1人</option>
+          <option value="2">2人</option>
+        </select>
+      </div>
+    </div>
+
+    <label>お題ペア（市民 / ウルフ）</label>
+    <select id="pairSelect"></select>
+
+    <div class="row">
+      <div>
+        <label>会話時間（秒）</label>
+        <input id="talkSeconds" type="number" min="30" max="600" value="150" />
+      </div>
+      <div>
+        <label>メモ（任意：回のタイトル等）</label>
+        <input id="note" type="text" placeholder="例：正月回 #1" />
+      </div>
+    </div>
+
+    <button id="genBtn">🎴 個別URLを生成</button>
+
+    <div id="result" class="card" hidden>
+      <h2>配布リンク</h2>
+      <p class="muted">
+        参加者へ <span class="pill">Player 1</span> みたいにそのまま送ってOK。<br>
+        放送主（あしゅりー）も自分の番号のリンクを開けば“参加者”になれます。
+      </p>
+      <div id="links"></div>
+
+      <div class="card">
+        <h2>OBS用（便利メモ）</h2>
+        <div class="muted">
+          ・会話時間：<span id="talkLabel" class="mono"></span> 秒<br>
+          ・投票：チャットで「怪しい人の番号」または名前で投票<br>
+          ・発表：全員いっせいにカード画面を再表示（リンクを開いたままでもOK）
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cardView" class="card" hidden>
+    <h2>あなたのカード</h2>
+    <div id="rolePill" class="pill"></div>
+    <div class="big" id="topicText"></div>
+    <div class="muted" id="metaText"></div>
+
+    <div class="card">
+      <h2>進行（おすすめ）</h2>
+      <ol class="muted">
+        <li>この画面を見たら、口に出さずに覚える（スクショは任意だけど事故る）</li>
+        <li>会話スタート（指定時間）</li>
+        <li>投票 → 開票 → 役職公開</li>
+      </ol>
+      <div class="muted warn">
+        ※この方式は「URLを他人に見せたらバレる」ので、DM配布＆自己管理でお願いします。
+      </div>
+    </div>
+  </div>
+
+  <div class="muted">
+    <span class="pill">使い方</span>
+    <span class="muted">URLに <span class="mono">?card=...</span> が付いてたらカード表示。無ければ司会画面。</span>
+  </div>
+</div>
+
+<script>
+  // ここにお題ペアを追加していけば増やせる（正月回も後で入れよう）
+  const PAIRS = [
+    { citizen: "お正月", wolf: "クリスマス" },
+    { citizen: "お年玉", wolf: "誕生日プレゼント" },
+    { citizen: "初詣", wolf: "お盆参り" },
+    { citizen: "おせち", wolf: "クリスマスケーキ" },
+    { citizen: "こたつ", wolf: "扇風機" },
+    { citizen: "みかん", wolf: "りんご" },
+    { citizen: "犬", wolf: "猫" },
+    { citizen: "カレー", wolf: "シチュー" },
+    { citizen: "海", wolf: "プール" },
+  ];
+
+  const $ = (id) => document.getElementById(id);
+
+  function b64e(str) { return btoa(unescape(encodeURIComponent(str))); }
+  function b64d(str) { return decodeURIComponent(escape(atob(str))); }
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function toMMSS(sec) {
+    const m = String(Math.floor(sec / 60)).padStart(2, "0");
+    const s = String(sec % 60).padStart(2, "0");
+    return `${m}:${s}`;
+  }
+
+  // --- 司会 or カード判定 ---
+  const url = new URL(location.href);
+  const cardParam = url.searchParams.get("card");
+
+  if (cardParam) {
+    // カード表示モード
+    $("cardView").hidden = false;
+    try {
+      const payload = JSON.parse(b64d(cardParam));
+      const role = payload.role;
+      const topic = payload.topic;
+      const meta = payload.meta || {};
+
+      $("rolePill").textContent = role === "WOLF" ? "🐺 ウルフ" : "👤 市民";
+      $("rolePill").className = "pill " + (role === "WOLF" ? "danger" : "ok");
+      $("topicText").textContent = topic;
+
+      const parts = [];
+      if (meta.note) parts.push(`回：${meta.note}`);
+      if (meta.talkSeconds) parts.push(`会話：${toMMSS(meta.talkSeconds)}`);
+      if (meta.pIndex) parts.push(`あなた：Player ${meta.pIndex}`);
+      $("metaText").textContent = parts.join(" / ");
+    } catch (e) {
+      $("topicText").textContent = "カード情報の読み込みに失敗しました";
+      $("metaText").textContent = "司会から送られたURLが壊れているかもしれません。";
+    }
+  } else {
+    // 司会モード
+    $("hostView").hidden = false;
+
+    // ペア選択肢
+    const sel = $("pairSelect");
+    PAIRS.forEach((p, idx) => {
+      const opt = document.createElement("option");
+      opt.value = String(idx);
+      opt.textContent = `市民「${p.citizen}」 / ウルフ「${p.wolf}」`;
+      sel.appendChild(opt);
+    });
+
+    $("genBtn").addEventListener("click", () => {
+      const n = Math.max(2, Math.min(12, Number($("playerCount").value || 5)));
+      const w = Math.max(1, Math.min(n-1, Number($("wolfCount").value || 1)));
+      const pair = PAIRS[Number(sel.value)];
+      const talkSeconds = Math.max(30, Math.min(600, Number($("talkSeconds").value || 150)));
+      const note = ($("note").value || "").trim();
+
+      // 役職配列（WOLFがw人、残りCITIZEN）
+      const roles = shuffle(Array.from({length:n}, (_,i)=> i < w ? "WOLF" : "CITIZEN"));
+
+      // 個別リンク生成
+      const linksDiv = $("links");
+      linksDiv.innerHTML = "";
+
+      for (let i = 0; i < n; i++) {
+        const role = roles[i];
+        const topic = role === "WOLF" ? pair.wolf : pair.citizen;
+
+        const payload = {
+          role,
+          topic,
+          meta: { talkSeconds, note, pIndex: i + 1 }
+        };
+        const card = b64e(JSON.stringify(payload));
+
+        const linkUrl = new URL(location.href);
+        linkUrl.searchParams.set("card", card);
+
+        const row = document.createElement("div");
+        row.className = "card";
+
+        const label = document.createElement("div");
+        label.innerHTML = `<span class="pill">Player ${i+1}</span> <span class="muted">（このURLをその人にDM）</span>`;
+        row.appendChild(label);
+
+        const lr = document.createElement("div");
+        lr.className = "linkrow";
+        const inp = document.createElement("input");
+        inp.value = linkUrl.toString();
+        inp.className = "mono";
+        inp.readOnly = true;
+
+        const btn = document.createElement("button");
+        btn.className = "copybtn";
+        btn.textContent = "コピー";
+        btn.onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(inp.value);
+            btn.textContent = "OK!";
+            setTimeout(()=> btn.textContent="コピー", 900);
+          } catch {
+            inp.select(); document.execCommand("copy");
+            btn.textContent = "OK!";
+            setTimeout(()=> btn.textContent="コピー", 900);
+          }
+        };
+
+        lr.appendChild(inp);
+        lr.appendChild(btn);
+        row.appendChild(lr);
+
+        linksDiv.appendChild(row);
+      }
+
+      $("talkLabel").textContent = talkSeconds;
+      $("result").hidden = false;
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    });
+  }
+</script>
+</body>
+</html>
