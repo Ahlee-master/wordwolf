@@ -5,137 +5,224 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Word Wolf（個別URL配布）</title>
   <style>
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      background: #0b0c10;
-      color: #eaf0ff;
-    }
-    .wrap {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 24px;
-    }
-    h1 { font-size: 26px; margin-bottom: 10px; }
-    .card {
-      background: #141824;
-      border: 1px solid #27304a;
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    label { display:block; margin-top:10px; }
+    body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:#0b0c10; color:#eaf0ff; }
+    .wrap { max-width:980px; margin:0 auto; padding:20px; }
+    h1 { margin:0 0 12px; font-size:22px; }
+    h2 { margin:0 0 8px; font-size:18px; }
+    .card { background:#141824; border:1px solid #27304a; border-radius:16px; padding:16px; margin:12px 0; }
+    label { display:block; margin:10px 0 6px; opacity:.9; }
     input, select, button {
-      width:100%;
-      margin-top:6px;
-      padding:10px;
-      border-radius:10px;
-      border:1px solid #2b3757;
-      background:#0f1320;
-      color:#eaf0ff;
+      width:100%; box-sizing:border-box;
+      padding:10px 12px; border-radius:12px; border:1px solid #2b3757;
+      background:#0f1320; color:#eaf0ff;
     }
-    button { font-weight:bold; cursor:pointer; }
-    .pill {
-      display:inline-block;
-      padding:4px 10px;
-      border-radius:999px;
-      background:#1e2a49;
-      font-size:12px;
-      margin-right:6px;
-    }
-    .big { font-size:28px; font-weight:800; margin:12px 0; }
+    button { cursor:pointer; font-weight:700; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+    .muted { opacity:.75; font-size:13px; line-height:1.5; }
+    .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#1e2a49; border:1px solid #32406a; font-size:12px; }
+    .big { font-size:28px; font-weight:800; margin:6px 0 10px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    .linkrow { display:flex; gap:8px; align-items:center; margin-top:8px; }
+    .linkrow input { flex:1; }
+    .copybtn { width:auto; padding:8px 12px; }
   </style>
 </head>
 <body>
 <div class="wrap">
+  <h1>🐺 Word Wolf（個別URL配布）</h1>
 
-<h1>🐺 Word Wolf（個別URL配布）</h1>
+  <div id="hostView" class="card" hidden>
+    <h2>司会画面</h2>
+    <p class="muted">
+      人数とウルフ人数、お題ペアを選んで「生成」→ 出たURLを各参加者へDMで配布。<br/>
+      URLに <span class="mono">?card=...</span> が付いている人はカード表示になります。
+    </p>
 
-<div id="host" class="card">
-  <h2>司会画面</h2>
+    <div class="row">
+      <div>
+        <label>参加人数（2〜12）</label>
+        <input id="playerCount" type="number" min="2" max="12" value="5" />
+      </div>
+      <div>
+        <label>ウルフ人数</label>
+        <select id="wolfCount">
+          <option value="1" selected>1人</option>
+          <option value="2">2人</option>
+          <option value="3">3人</option>
+        </select>
+      </div>
+    </div>
 
-  <label>参加人数</label>
-  <input id="players" type="number" min="2" max="10" value="5">
+    <label>お題ペア（市民 / ウルフ）</label>
+    <select id="pairSelect"></select>
 
-  <label>お題ペア</label>
-  <select id="pair"></select>
+    <button id="genBtn">🎴 個別URLを生成</button>
 
-  <button onclick="generate()">🎴 個別URLを生成</button>
+    <div id="result" class="card" hidden>
+      <h2>配布リンク</h2>
+      <div id="links"></div>
+    </div>
+  </div>
 
-  <div id="links"></div>
-</div>
+  <div id="cardView" class="card" hidden>
+    <h2>あなたのカード</h2>
+    <span id="rolePill" class="pill"></span>
+    <div class="big" id="topicText"></div>
+    <div class="muted" id="metaText"></div>
+  </div>
 
-<div id="card" class="card" style="display:none;">
-  <h2>あなたのカード</h2>
-  <div class="big" id="role"></div>
-  <div class="big" id="topic"></div>
-</div>
-
+  <div class="muted"><span class="pill">使い方</span> URLに <span class="mono">?card=...</span> が付いてたらカード表示。無ければ司会画面。</div>
 </div>
 
 <script>
-const PAIRS = [
-  { citizen:"お正月", wolf:"休日" },
-  { citizen:"初詣", wolf:"お参り" },
-  { citizen:"お年玉", wolf:"ボーナス" },
-  { citizen:"正月太り", wolf:"食べ過ぎ" },
-  { citizen:"新年の目標", wolf:"やりたいこと" },
+  // ===== 15問セット =====
+  const PAIRS = [
+    // 正月（5）
+    { citizen: "お正月", wolf: "休日" },
+    { citizen: "初詣", wolf: "お参り" },
+    { citizen: "お年玉", wolf: "ボーナス" },
+    { citizen: "正月太り", wolf: "食べ過ぎ" },
+    { citizen: "新年の目標", wolf: "やりたいこと" },
 
-  { citizen:"好きな人", wolf:"気になる人" },
-  { citizen:"告白", wolf:"プロポーズ" },
-  { citizen:"ファーストキス", wolf:"初体験" },
-  { citizen:"恋人にしたいタイプ", wolf:"結婚したいタイプ" },
-  { citizen:"安心できる人", wolf:"刺激的な人" },
+    // 恋愛（5）
+    { citizen: "好きな人", wolf: "気になる人" },
+    { citizen: "告白", wolf: "プロポーズ" },
+    { citizen: "ファーストキス", wolf: "初体験" },
+    { citizen: "恋人にしたいタイプ", wolf: "結婚したいタイプ" },
+    { citizen: "安心できる人", wolf: "刺激的な人" },
 
-  { citizen:"黒歴史", wolf:"トラウマ" },
-  { citizen:"寂しいこと", wolf:"悔しいこと" },
-  { citizen:"普通", wolf:"異常" },
-  { citizen:"人生とは", wolf:"夢とは" },
-  { citizen:"片思い", wolf:"ストーカー" }
-];
+    // 地獄（5）
+    { citizen: "黒歴史", wolf: "トラウマ" },
+    { citizen: "寂しいこと", wolf: "悔しいこと" },
+    { citizen: "普通", wolf: "異常" },
+    { citizen: "人生とは", wolf: "夢とは" },
+    { citizen: "片思い", wolf: "ストーカー" },
+  ];
 
-const q = new URLSearchParams(location.search);
-const card = q.get("card");
+  const $ = (id) => document.getElementById(id);
 
-if (card) {
-  document.getElementById("host").style.display="none";
-  document.getElementById("card").style.display="block";
-  const data = JSON.parse(atob(card));
-  document.getElementById("role").textContent =
-    data.role === "WOLF" ? "🐺 ウルフ" : "👤 市民";
-  document.getElementById("topic").textContent = data.topic;
-} else {
-  const sel = document.getElementById("pair");
-  PAIRS.forEach((p,i)=>{
-    const o=document.createElement("option");
-    o.value=i;
-    o.textContent=`${p.citizen} / ${p.wolf}`;
-    sel.appendChild(o);
-  });
-}
+  // ✅ 日本語OK Base64（UTF-8）
+  function b64e(obj) {
+    const json = JSON.stringify(obj);
+    const bytes = new TextEncoder().encode(json);
+    let bin = "";
+    bytes.forEach(b => bin += String.fromCharCode(b));
+    return btoa(bin);
+  }
+  function b64d(str) {
+    const bin = atob(str);
+    const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
+    return JSON.parse(json);
+  }
 
-function generate(){
-  const n = Number(document.getElementById("players").value);
-  const pair = PAIRS[document.getElementById("pair").value];
-  const roles = Array(n).fill("CITIZEN");
-  roles[Math.floor(Math.random()*n)]="WOLF";
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
 
-  const links = document.getElementById("links");
-  links.innerHTML="";
+  // --- モード判定 ---
+  const url = new URL(location.href);
+  const cardParam = url.searchParams.get("card");
 
-  roles.forEach((r,i)=>{
-    const data = {
-      role:r,
-      topic: r==="WOLF"?pair.wolf:pair.citizen
-    };
-    const url = location.origin+location.pathname+
-      "?card="+btoa(JSON.stringify(data));
-    const div=document.createElement("div");
-    div.textContent=`Player${i+1}: ${url}`;
-    links.appendChild(div);
-  });
-}
+  if (cardParam) {
+    // カード表示
+    $("cardView").hidden = false;
+
+    try {
+      const payload = b64d(decodeURIComponent(cardParam));
+      const role = payload.role;
+      const topic = payload.topic;
+      const pIndex = payload.pIndex;
+
+      $("rolePill").textContent = role === "WOLF" ? "🐺 ウルフ" : "👤 市民";
+      $("topicText").textContent = topic;
+      $("metaText").textContent = pIndex ? `あなた：Player ${pIndex}` : "";
+    } catch (e) {
+      $("topicText").textContent = "カード情報の読み込みに失敗しました";
+      $("metaText").textContent = "司会から送られたURLが壊れているかもしれません。";
+    }
+  } else {
+    // 司会画面
+    $("hostView").hidden = false;
+
+    const sel = $("pairSelect");
+    PAIRS.forEach((p, idx) => {
+      const opt = document.createElement("option");
+      opt.value = String(idx);
+      opt.textContent = `市民「${p.citizen}」 / ウルフ「${p.wolf}」`;
+      sel.appendChild(opt);
+    });
+
+    $("genBtn").addEventListener("click", async () => {
+      const n = Math.max(2, Math.min(12, Number($("playerCount").value || 5)));
+      const w = Math.max(1, Math.min(n - 1, Number($("wolfCount").value || 1)));
+      const pair = PAIRS[Number(sel.value)];
+
+      // 役職配列（WOLFがw人）
+      const roles = shuffle(
+        Array.from({ length: n }, (_, i) => (i < w ? "WOLF" : "CITIZEN"))
+      );
+
+      const linksDiv = $("links");
+      linksDiv.innerHTML = "";
+
+      for (let i = 0; i < n; i++) {
+        const role = roles[i];
+        const topic = role === "WOLF" ? pair.wolf : pair.citizen;
+
+        const payload = { role, topic, pIndex: i + 1 };
+        const card = encodeURIComponent(b64e(payload));
+
+        const linkUrl = new URL(location.href);
+        linkUrl.searchParams.set("card", card);
+
+        const row = document.createElement("div");
+        row.className = "card";
+
+        const head = document.createElement("div");
+        head.innerHTML = `<span class="pill">Player ${i + 1}</span> <span class="muted">（このURLをその人にDM）</span>`;
+        row.appendChild(head);
+
+        const lr = document.createElement("div");
+        lr.className = "linkrow";
+
+        const inp = document.createElement("input");
+        inp.value = linkUrl.toString();
+        inp.className = "mono";
+        inp.readOnly = true;
+
+        const btn = document.createElement("button");
+        btn.className = "copybtn";
+        btn.textContent = "コピー";
+        btn.onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(inp.value);
+            btn.textContent = "OK!";
+            setTimeout(() => (btn.textContent = "コピー"), 900);
+          } catch {
+            inp.select();
+            document.execCommand("copy");
+            btn.textContent = "OK!";
+            setTimeout(() => (btn.textContent = "コピー"), 900);
+          }
+        };
+
+        lr.appendChild(inp);
+        lr.appendChild(btn);
+        row.appendChild(lr);
+
+        linksDiv.appendChild(row);
+      }
+
+      $("result").hidden = false;
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    });
+  }
 </script>
-
 </body>
 </html>
